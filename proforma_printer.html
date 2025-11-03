@@ -1,104 +1,78 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Impresor de Proformas</title>
+  <title>Impresor de Proformas · Bestberry</title>
 
   <!-- SheetJS (para leer .xlsx) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <!-- Tailwind CDN (solo utilidades en runtime; NO usa @apply) -->
+  <!-- Tailwind CDN (runtime) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    /* Configuración rápida de Tailwind (colores y fuente) */
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            brand: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8',
+              500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81'
+            }
+          },
+          boxShadow: {
+            soft: '0 10px 25px rgba(2, 6, 23, 0.08)',
+          }
+        }
+      }
+    }
+  </script>
 
   <style>
-    :root {
-      --ring: rgba(99, 102, 241, 0.5);
-    }
-    body {
-      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background-color: #f1f5f9; /* slate-100 */
-      color: #0f172a; /* slate-900 */
-    }
+    :root { --ring: rgba(99,102,241,.5); }
+    html, body { height: 100%; }
+    body { background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); color: #0f172a; }
 
-    /* ====== Estilos propios (sin @apply) ====== */
-    .ui-container {
-      max-width: 900px;
-      margin: 2rem auto;
-      padding: 2rem;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
-    }
-    .btn-primary {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 100%;
-      padding: 0.8rem 1.2rem;
-      font-weight: 600; font-size: 1rem;
-      color: #fff; background: #4f46e5; border: 1px solid transparent;
-      border-radius: 0.75rem;
-      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
-      transition: background 120ms, transform 120ms, box-shadow 120ms;
-      cursor: pointer;
-    }
-    .btn-primary:hover { background: #4338ca; }
-    .btn-primary:active { transform: translateY(1px); box-shadow: 0 2px 6px rgba(79,70,229,.25); }
-    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+    /* ===== Accesibilidad (focus visibles) ===== */
+    .focus-ring { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ring); }
+    .focus-ring:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ring); }
 
-    .input-file-dropzone {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      width: 100%; min-height: 160px; padding: 1.25rem;
-      text-align: center;
-      background: #fff; border: 2px dashed #cbd5e1; border-radius: 0.75rem;
-      transition: background 120ms, border-color 120ms;
-      cursor: pointer;
-    }
-    .input-file-dropzone:hover { background: #f8fafc; border-color: #94a3b8; }
-    .input-file-dropzone input[type="file"] { display: none; }
-
-    .checkbox-input { width: 1rem; height: 1rem; border-radius: .25rem; border: 1px solid #cbd5e1; }
-
-    /* ====== Área de impresión ====== */
+    /* ===== Zona de impresión ===== */
     #printArea { display: none; }
-    .proforma-page {
-      width: 210mm; height: 297mm; /* A4 */
-      padding: 15mm; margin: 0 auto; background: #fff; color: #000; box-sizing: border-box;
-      display: flex; flex-direction: column;
-    }
+    .proforma-page { width: 210mm; height: 297mm; padding: 15mm; margin: 0 auto; background: #fff; color: #000; box-sizing: border-box; display: flex; flex-direction: column; }
     @page { size: A4; margin: 0; }
     @media print {
       html, body { width: 210mm; height: 297mm; margin: 0; padding: 0; }
-      .ui-container { display: none; }
-      #printArea { display: block; margin: 0; padding: 0; }
+      .ui-shell { display: none; }
+      #printArea { display: block; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .proforma-page { box-shadow: none; border: none; margin: 0; padding: 15mm; page-break-after: always; }
       .proforma-footer, .totals-section { page-break-inside: avoid; }
     }
 
-    /* ====== Contenido Proforma ====== */
+    /* ===== Proforma (estilo de documento) ===== */
     .proforma-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 10px; }
     .proforma-header img { max-width: 180px; max-height: 80px; object-fit: contain; }
     .proforma-title-box { border: 2px solid #000; padding: 6px 18px; text-align: center; }
     .proforma-title { font-size: 16pt; font-weight: 800; margin: 0; letter-spacing: .5px; }
     .proforma-id { font-size: 12pt; font-weight: 700; margin: 0; }
-
     .customer-info { margin-top: 10px; font-size: 10pt; }
     .customer-info-table { border-collapse: collapse; width: 100%; }
     .customer-info-table td { padding: 3px 6px; vertical-align: top; }
     .customer-info-table .label { font-weight: 700; white-space: nowrap; padding-right: 5px; width: 1%; }
     .customer-info-table .data { border-bottom: 1px solid #000; }
-
     .table-wrapper { margin-top: 10px; border: 2px solid #000; border-bottom: none; min-height: 100px; }
     .details-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .details-table thead th { border-bottom: 2px solid #000; padding: 8px 5px; text-align: center; font-size: 10pt; font-weight: 700; background: #f0f0f0; }
+    .details-table thead th { border-bottom: 2px solid #000; padding: 8px 5px; text-align: center; font-size: 10pt; font-weight: 700; background: #f2f2f2; }
     .details-table tbody { font-size: 10pt; }
     .details-table tbody tr:first-child td { padding-top: 8px; }
     .details-table tbody tr td { padding: 4px 5px; vertical-align: top; }
-
     .col-cantidad { width: 15%; text-align: right; padding-right: 10px !important; }
     .col-detalle { width: 50%; }
     .col-punitario { width: 17.5%; text-align: right; padding-right: 10px !important; }
     .col-total { width: 17.5%; text-align: right; padding-right: 10px !important; }
-
     .totals-section { display: flex; border: 2px solid #000; font-size: 10pt; font-weight: 700; flex-shrink: 0; }
     .totals-glosa { width: 65%; padding: 8px 5px; border-right: 2px solid #000; min-height: 80px; }
     .totals-table { width: 35%; }
@@ -107,7 +81,6 @@
     .totals-table .label { text-align: left; }
     .totals-table .value { text-align: right; }
     .totals-table tr:not(:last-child) td { border-bottom: 1px solid #000; }
-
     .proforma-footer { margin-top: 10px; border: 2px solid #000; padding: 10px 15px; font-size: 9pt; display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0; }
     .footer-column { width: 48%; display: flex; flex-direction: column; justify-content: space-between; height: 50px; }
     .footer-line { display: flex; }
@@ -115,118 +88,160 @@
     .footer-line .data { border-bottom: 1px solid #000; width: 100%; }
   </style>
 </head>
-<body>
-  <!-- ====== UI ====== -->
-  <div class="ui-container">
-    <h1 class="text-3xl font-bold mb-6">Impresor de Proformas</h1>
-
-    <!-- Carga de archivos -->
-    <div class="mb-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
-      <h2 class="text-xl font-semibold mb-5">1. Cargar Archivos</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label for="fileInput" class="input-file-dropzone">
-            <svg class="w-10 h-10 text-gray-400 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-            <span class="font-medium text-indigo-600">Cargar archivo Excel</span>
-            <span class="text-sm text-slate-500 mt-1" id="file-name">o arrastrar y soltar (.xlsx)</span>
-            <input id="fileInput" type="file" accept=".xlsx, .xls" />
-          </label>
+<body class="font-sans antialiased">
+  <!-- ===== UI SHELL (barra + contenedor) ===== -->
+  <div class="ui-shell">
+    <header class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur">
+      <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <img src="https://placehold.co/36x36/6366f1/fff?text=B" alt="Bestberry" class="h-9 w-9 rounded-lg shadow-soft"/>
+          <div>
+            <p class="text-sm text-slate-500 leading-none">Bestberry · Herramientas</p>
+            <h1 class="font-semibold text-slate-900">Impresor de Proformas</h1>
+          </div>
         </div>
-        <div>
-          <label for="logoInput" class="input-file-dropzone">
-            <svg class="w-10 h-10 text-slate-400 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm16.5-1.5H3.75v-1.5m16.5 0v1.5m0 0v-1.5m0 0h-16.5" /></svg>
-            <span class="font-medium text-indigo-600">Cargar logo (Opcional)</span>
-            <span class="text-sm text-slate-500 mt-1" id="logo-file-name">o arrastrar y soltar (.png, .jpg)</span>
-            <input id="logoInput" type="file" accept="image/*" />
-          </label>
+        <div class="hidden md:flex items-center gap-2">
+          <span id="badgeSelected" class="hidden rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">0 seleccionadas</span>
+          <button id="printButton" disabled class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-white font-semibold shadow-soft transition active:translate-y-px disabled:opacity-50 focus-ring">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18h12v4H6v-4Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 14h12m-8-4h4"/></svg>
+            Imprimir seleccionadas
+          </button>
         </div>
       </div>
-    </div>
+    </header>
 
-    <div id="errorMessage" class="hidden p-4 mb-4 text-sm rounded-lg" role="alert"></div>
+    <main class="mx-auto max-w-6xl px-4 py-8">
+      <!-- Mensajes -->
+      <div id="messageHost" class="space-y-3"></div>
 
-    <hr class="my-8 border-slate-200" />
-
-    <!-- Selección de proformas -->
-    <div class="mb-8">
-      <h2 class="text-xl font-semibold mb-5">2. Seleccionar Proformas</h2>
-      <div id="proformaListContainer" class="relative overflow-hidden border border-slate-200 rounded-lg">
-        <div class="max-h-64 overflow-y-auto">
-          <table class="w-full text-sm text-left text-slate-600">
-            <thead class="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0">
-              <tr>
-                <th class="p-4"><input type="checkbox" id="selectAllCheckbox" class="checkbox-input" /></th>
-                <th class="px-6 py-3">ID Proforma</th>
-                <th class="px-6 py-3">Cliente</th>
-              </tr>
-            </thead>
-            <tbody id="proformaListBody">
-              <tr>
-                <td colspan="3" class="px-6 py-4 text-center text-slate-500">Carga un archivo Excel para ver las proformas disponibles.</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Paso 1: Cargar archivos -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-semibold text-slate-900">1. Cargar archivos</h2>
+            <p class="mt-1 text-sm text-slate-600">Sube el Excel con las proformas y, opcionalmente, el logo que irá en el documento.</p>
+          </div>
+          <span class="hidden md:inline-flex select-none rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">A4 · 300&nbsp;DPI</span>
         </div>
-      </div>
-    </div>
 
-    <hr class="my-8 border-slate-200" />
+        <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <!-- Excel -->
+          <label for="fileInput" class="group flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center transition hover:border-brand-300 hover:bg-brand-50/40 focus-within:border-brand-400">
+            <svg class="mb-3 h-10 w-10 text-slate-400 transition group-hover:text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            <div class="font-medium text-brand-700">Cargar archivo Excel</div>
+            <div id="file-name" class="mt-1 text-sm text-slate-500">o arrastrar y soltar (.xlsx)</div>
+            <input id="fileInput" type="file" accept=".xlsx, .xls" class="sr-only"/>
+          </label>
 
-    <!-- Imprimir -->
-    <div>
-      <h2 class="text-xl font-semibold mb-5">3. Generar Impresión</h2>
-      <button id="printButton" class="btn-primary" disabled>
-        <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6 13.828m0 0l-.071.007M6 13.828l.071-.007m0 0l.071.007m0 0l-.071-.007M12.75 8.25c.24.03.48.062.72.096m-.72-.096a42.415 42.415 0 00-10.56 0m10.56 0L12 8.25m0 0l.071.007M12 8.25l-.071-.007m0 0l-.071.007m0 0l.071-.007M6.75 7.5h.008v.008H6.75V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zM17.25 7.5h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5zm.375 0h.008v.008h-.008V7.5z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9a2.25 2.25 0 00-2.25 2.25v.003c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V21a2.25 2.25 0 00-2.25-2.25z" /></svg>
-        Imprimir seleccionadas
-      </button>
-    </div>
+          <!-- Logo -->
+          <label for="logoInput" class="group flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center transition hover:border-brand-300 hover:bg-brand-50/40 focus-within:border-brand-400">
+            <svg class="mb-3 h-10 w-10 text-slate-400 transition group-hover:text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm16.5-1.5H3.75v-1.5m16.5 0v1.5m0 0v-1.5m0 0h-16.5"/></svg>
+            <div class="font-medium text-brand-700">Cargar logo (opcional)</div>
+            <div id="logo-file-name" class="mt-1 text-sm text-slate-500">o arrastrar y soltar (.png, .jpg)</div>
+            <input id="logoInput" type="file" accept="image/*" class="sr-only" />
+          </label>
+        </div>
+      </section>
+
+      <!-- Paso 2: Selección de proformas -->
+      <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-xl font-semibold text-slate-900">2. Seleccionar proformas</h2>
+        <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+          <div class="max-h-72 overflow-y-auto">
+            <table class="w-full text-sm text-left text-slate-700">
+              <thead class="sticky top-0 z-10 bg-slate-50/95 uppercase tracking-wide text-xs border-b border-slate-200">
+                <tr>
+                  <th class="p-3 w-12"><input type="checkbox" id="selectAllCheckbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus-ring"/></th>
+                  <th class="px-4 py-3">ID Proforma</th>
+                  <th class="px-4 py-3">Cliente</th>
+                </tr>
+              </thead>
+              <tbody id="proformaListBody">
+                <tr class="bg-white">
+                  <td colspan="3" class="px-6 py-6 text-center text-slate-500">Carga un archivo Excel para ver las proformas disponibles.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="mt-4 flex items-center justify-between">
+          <p class="text-sm text-slate-600">
+            Consejo: puedes buscar con <kbd class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">Ctrl</kbd> + <kbd class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">F</kbd> si la lista es larga.
+          </p>
+          <button id="printButtonSm" disabled class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-white font-semibold shadow-soft transition active:translate-y-px disabled:opacity-50 focus-ring md:hidden">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18h12v4H6v-4Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 14h12m-8-4h4"/></svg>
+            Imprimir seleccionadas
+          </button>
+        </div>
+      </section>
+
+      <!-- Paso 3: Generar -->
+      <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-xl font-semibold text-slate-900">3. Generar impresión</h2>
+        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+            <p><span class="font-semibold text-slate-800">Formato:</span> A4, orientación vertical.</p>
+            <p class="mt-1">Se aplica <em>print-color-adjust</em> para preservar colores en cabeceras.</p>
+          </div>
+          <div class="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+            <p><span class="font-semibold text-slate-800">Totales:</span> usa IVA 19% por defecto.</p>
+            <p class="mt-1">Los valores se formatean en CLP (sin decimales).</p>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 
-  <!-- Área de impresión -->
+  <!-- Área de impresión (solo al imprimir) -->
   <div id="printArea"></div>
 
   <script>
     let proformaData = {};
     let logoDataUrl = null;
 
-    // ====== Formateadores ======
-    const currencyFormatter = new Intl.NumberFormat('es-CL', {
-      style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0,
-    });
-    const numberFormatter = new Intl.NumberFormat('es-ES', {
-      style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2,
-    });
-    const quantityFormatter = new Intl.NumberFormat('es-ES', {
-      style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2,
-    });
+    // ===== Utilidades de formato =====
+    const currencyFormatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0, });
+    const numberFormatter = new Intl.NumberFormat('es-ES', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2, });
+    const quantityFormatter = new Intl.NumberFormat('es-ES', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2, });
 
-    // ====== Util: mensajes ======
-    function showMessage(type, message) {
-      const box = document.getElementById('errorMessage');
-      box.classList.remove('hidden');
-      box.textContent = message;
+    // ===== Mensajes (toast simple) =====
+    function showToast(type, message) {
+      const host = document.getElementById('messageHost');
+      const base = document.createElement('div');
+      base.className = 'flex items-start gap-3 rounded-xl border p-4 shadow-soft';
+      const iconWrap = document.createElement('div');
+      iconWrap.className = 'mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full';
+      const text = document.createElement('div');
+      text.className = 'text-sm';
+      text.textContent = message;
+
       if (type === 'error') {
-        box.className = 'p-4 mb-4 text-sm rounded-lg bg-red-100 text-red-700';
-      } else if (type === 'success') {
-        box.className = 'p-4 mb-4 text-sm rounded-lg bg-green-100 text-green-700';
+        base.classList.add('border-red-200', 'bg-red-50');
+        iconWrap.classList.add('bg-red-100', 'text-red-700');
+        iconWrap.innerHTML = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
       } else {
-        box.className = 'hidden';
+        base.classList.add('border-emerald-200', 'bg-emerald-50');
+        iconWrap.classList.add('bg-emerald-100', 'text-emerald-700');
+        iconWrap.innerHTML = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
       }
+      base.appendChild(iconWrap); base.appendChild(text);
+      host.appendChild(base);
+      setTimeout(() => base.remove(), 4000);
     }
 
-    // ====== Logo ======
+    // ===== Logo =====
     document.getElementById('logoInput').addEventListener('change', (event) => {
       const file = event.target.files?.[0];
       const labelSpan = document.getElementById('logo-file-name');
       if (!file) { labelSpan.textContent = 'o arrastrar y soltar (.png, .jpg)'; return; }
       labelSpan.textContent = file.name;
       const reader = new FileReader();
-      reader.onload = (e) => { logoDataUrl = e.target.result; showMessage('success', `Logo "${file.name}" cargado correctamente.`); };
-      reader.onerror = () => { logoDataUrl = null; showMessage('error', 'No se pudo leer el archivo de logo.'); };
+      reader.onload = (e) => { logoDataUrl = e.target.result; showToast('ok', `Logo "${file.name}" cargado correctamente.`); };
+      reader.onerror = () => { logoDataUrl = null; showToast('error', 'No se pudo leer el archivo de logo.'); };
       reader.readAsDataURL(file);
     });
 
-    // ====== Excel ======
+    // ===== Excel =====
     document.getElementById('fileInput').addEventListener('change', (event) => {
       const file = event.target.files?.[0];
       const labelSpan = document.getElementById('file-name');
@@ -242,10 +257,10 @@
           processData(json);
         } catch (err) {
           console.error(err);
-          showMessage('error', `Error al leer el archivo: ${err.message}`);
+          showToast('error', `Error al leer el archivo: ${err.message}`);
         }
       };
-      reader.onerror = () => showMessage('error', 'No se pudo leer el archivo.');
+      reader.onerror = () => showToast('error', 'No se pudo leer el archivo.');
       reader.readAsArrayBuffer(file);
     });
 
@@ -255,11 +270,11 @@
 
     function processData(rows) {
       proformaData = {};
-      if (!rows?.length) { showMessage('error', 'El archivo Excel está vacío.'); return; }
+      if (!rows?.length) { showToast('error', 'El archivo Excel está vacío.'); return; }
       const headers = Object.keys(rows[0]).map(normalizeKey);
       const required = ['ID_PROFORMA', 'SENORES', 'FECHA', 'CANTIDAD', 'DETALLE', 'PUNITARIO'];
       for (const col of required) {
-        if (!headers.includes(col)) { showMessage('error', `Falta la columna "${col}".`); return; }
+        if (!headers.includes(col)) { showToast('error', `Falta la columna "${col}".`); return; }
       }
 
       rows.forEach((row) => {
@@ -272,99 +287,94 @@
       });
 
       updateProformaList();
-      showMessage('success', `Se encontraron ${Object.keys(proformaData).length} proformas únicas.`);
+      showToast('ok', `Se encontraron ${Object.keys(proformaData).length} proformas únicas.`);
     }
 
     function updateProformaList() {
       const body = document.getElementById('proformaListBody');
       const btn = document.getElementById('printButton');
+      const btnSm = document.getElementById('printButtonSm');
       const all = document.getElementById('selectAllCheckbox');
+      const badge = document.getElementById('badgeSelected');
 
       if (!Object.keys(proformaData).length) {
-        body.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-slate-500">No se encontraron datos.</td></tr>'; btn.disabled = true; all.disabled = true; return;
+        body.innerHTML = '<tr><td colspan="3" class="px-6 py-6 text-center text-slate-500">No se encontraron datos.</td></tr>';
+        btn.disabled = true; btnSm.disabled = true; all.disabled = true; badge.classList.add('hidden'); return;
       }
       body.innerHTML = '';
-      btn.disabled = false; all.disabled = false; all.checked = false;
+      btn.disabled = false; btnSm.disabled = false; all.disabled = false; all.checked = false;
 
       for (const id in proformaData) {
         const pf = proformaData[id];
         const tr = document.createElement('tr');
-        tr.className = 'bg-white border-b hover:bg-slate-50';
+        tr.className = 'bg-white border-b border-slate-200 hover:bg-slate-50';
         tr.innerHTML = `
-          <td class="w-4 p-4"><input type="checkbox" class="checkbox-input proforma-checkbox" value="${id}" /></td>
-          <th class="px-6 py-3 font-semibold text-slate-900 whitespace-nowrap">${id}</th>
-          <td class="px-6 py-3 truncate" style="max-width: 20rem;">${pf.header.SENORES || ''}</td>`;
+          <td class="w-12 p-3"><input type="checkbox" class="proforma-checkbox h-4 w-4 rounded border-slate-300 text-brand-600 focus-ring" value="${id}"/></td>
+          <th class="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">${id}</th>
+          <td class="px-4 py-3 truncate" style="max-width: 28rem;">${pf.header.SENORES || ''}</td>`;
         body.appendChild(tr);
       }
 
       all.onchange = (e) => {
         body.querySelectorAll('.proforma-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateBadge();
       };
+      body.addEventListener('change', (e) => {
+        if (e.target.classList?.contains('proforma-checkbox')) updateBadge();
+      });
+
+      function updateBadge() {
+        const count = document.querySelectorAll('.proforma-checkbox:checked').length;
+        if (count > 0) { badge.textContent = `${count} seleccionada${count>1?'s':''}`; badge.classList.remove('hidden'); }
+        else { badge.classList.add('hidden'); }
+      }
 
       document.getElementById('printButton').onclick = printSelected;
+      document.getElementById('printButtonSm').onclick = printSelected;
     }
 
-    // ====== FECHAS: parseo robusto + salida chilena (DD de Mes de AAAA) ======
+    // ===== Fecha (Chile) =====
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
     function normalizeYear(y) { y = Number(y); if (y < 100) return 2000 + y; return y; }
-
     function excelSerialToDate(n) {
       if (typeof n !== 'number') return null;
-      // Soporte para XLSX serial (1900-based). Usa SSF si existe para mayor seguridad.
       try {
         if (XLSX?.SSF?.parse_date_code) {
           const d = XLSX.SSF.parse_date_code(n);
           if (d) return new Date(d.y, d.m - 1, d.d);
         }
       } catch {}
-      const epoch = new Date(Date.UTC(1899, 11, 30)); // Excel weirdness
+      const epoch = new Date(Date.UTC(1899, 11, 30));
       const ms = n * 86400000; return new Date(epoch.getTime() + ms);
     }
-
     function parseFecha(valor) {
       if (!valor && valor !== 0) return null;
-      // 1) Date real
       if (Object.prototype.toString.call(valor) === '[object Date]') return valor;
-      // 2) Serial Excel
-      if (typeof valor === 'number') {
-        const d = excelSerialToDate(valor); if (d && !isNaN(d)) return d; return null;
-      }
-      // 3) String
+      if (typeof valor === 'number') { const d = excelSerialToDate(valor); return (d && !isNaN(d)) ? d : null; }
       const str = String(valor).trim(); if (!str) return null;
-      const only = str.split('T')[0].split(' ')[0]; // corta tiempo si viene
-      // ISO: yyyy-mm-dd o yyyy/mm/dd
+      const only = str.split('T')[0].split(' ')[0];
       let m = only.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
       if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      // DMY/MDDY con separador - o /
       m = only.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/);
       if (m) {
         let a = Number(m[1]), b = Number(m[2]), y = normalizeYear(m[3]);
         let day, month;
-        if (a > 12) { day = a; month = b; } // seguro D/M/Y
-        else if (b > 12) { day = b; month = a; } // seguro M/D/Y (americano)
-        else { day = a; month = b; } // ambos <= 12: preferimos D/M/Y
+        if (a > 12) { day = a; month = b; }
+        else if (b > 12) { day = b; month = a; }
+        else { day = a; month = b; }
         return new Date(y, month - 1, day);
       }
-      // fallback: intenta Date (puede asumir MM/DD/YYYY en navegadores en-US). Evitamos si es inválido
       const d = new Date(str); return isNaN(d) ? null : d;
     }
-
     function fechaChileParts(valor, fallbackYear = new Date().getFullYear()) {
       const d = parseFecha(valor);
       let day = '', monthName = '', year = '';
-      if (d) {
-        day = String(d.getDate()).padStart(2, '0');
-        monthName = MESES[d.getMonth()];
-        year = String(d.getFullYear());
-      } else {
-        // si no pudimos parsear, deja en blanco pero sin romper el layout
-        day = '—'; monthName = '—'; year = String(fallbackYear);
-      }
+      if (d) { day = String(d.getDate()).padStart(2, '0'); monthName = MESES[d.getMonth()]; year = String(d.getFullYear()); }
+      else { day = '—'; monthName = '—'; year = String(fallbackYear); }
       return { day, monthName, year };
     }
 
-    // ====== Render de página ======
+    // ===== Render de página =====
     function createProformaPage(proforma, id) {
       const page = document.createElement('div');
       page.className = 'proforma-page';
@@ -383,7 +393,6 @@
 
       const iva = valorNeto * 0.19;
       const total = valorNeto + iva;
-
       const { day, monthName, year } = fechaChileParts(header.FECHA, 2025);
 
       page.innerHTML = `
@@ -486,7 +495,7 @@
       const selected = document.querySelectorAll('.proforma-checkbox:checked');
       const printArea = document.getElementById('printArea');
       printArea.innerHTML = '';
-      if (!selected.length) { showMessage('error', 'Debes seleccionar al menos una proforma.'); return; }
+      if (!selected.length) { showToast('error', 'Debes seleccionar al menos una proforma.'); return; }
       selected.forEach(cb => {
         const id = cb.value; const data = proformaData[id];
         if (data) printArea.appendChild(createProformaPage(data, id));
